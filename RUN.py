@@ -4,10 +4,13 @@ import RLLHC
 import pandas as pd
 from time import time
 import numpy as np
+import matplotlib.cm as cm
+import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
 import matplotlib.pyplot as plt
 import pickle
+
 
 class Run: 
      
@@ -27,28 +30,33 @@ class Run:
                 delta_beta_star_y_b2, delta_mux_b1, delta_muy_b1, delta_mux_b2, \
                 delta_muy_b2, n_disp_b1, n_disp_b2, \
                 triplet_errors, arc_errors_b1, arc_errors_b2, mqt_errors_b1, mqt_errors_b2 = self.all_samples.T
-
-                mqt_errors_b1, mqt_errors_b2 = self.rllhc.clean_data(mqt_errors_b1, mqt_errors_b2)
-
-                errors_tmp = np.concatenate(( \
-                np.vstack(triplet_errors),\
-                #np.vstack(arc_errors_b1), np.vstack(arc_errors_b2), \
-                #np.vstack(mqt_errors_b1), np.vstack(mqt_errors_b2),
-                ), axis=1)
-
-                betas_tmp = np.concatenate((np.vstack(delta_beta_star_x_b1), np.vstack(delta_beta_star_y_b1), \
-                np.vstack(delta_beta_star_x_b2), np.vstack(delta_beta_star_y_b2), \
-                #np.vstack(delta_mux_b1), np.vstack(delta_mux_b2), \
-                #np.vstack(delta_muy_b1), np.vstack(delta_muy_b2), \
-                #np.vstack(n_disp_b1), np.vstack(n_disp_b2), \
-                ), axis=1)
-
-                if i == 0:
-                    self.betas = betas_tmp
-                    self.errors = errors_tmp
+                
+                if len(mqt_errors_b1[0])==0:
+                    pass
                 else:
-                    self.betas = np.concatenate((self.betas, betas_tmp, ), axis=0)
-                    self.errors = np.concatenate((self.errors, errors_tmp, ), axis=0)
+                    mqt_errors_b1, mqt_errors_b2 = self.rllhc.clean_data(mqt_errors_b1, mqt_errors_b2)
+                    errors_tmp = np.concatenate(( \
+                    np.vstack(triplet_errors),\
+                    np.vstack(mqt_errors_b1), np.vstack(mqt_errors_b2), \
+                    np.vstack(arc_errors_b1), np.vstack(arc_errors_b2), \
+                    ), axis=1)
+
+                    betas_tmp = np.concatenate((
+                    np.vstack(delta_beta_star_x_b1), \
+                    np.vstack(delta_beta_star_y_b1), \
+                    np.vstack(delta_beta_star_x_b2), \
+                    np.vstack(delta_beta_star_y_b2), \
+                    np.vstack(delta_muy_b1), np.vstack(delta_muy_b2), \
+                    np.vstack(delta_mux_b1), np.vstack(delta_mux_b2), \
+                    np.vstack(n_disp_b1), np.vstack(n_disp_b2), \
+                    ), axis=1)
+
+                    if i == 0:
+                        self.betas = betas_tmp
+                        self.errors = errors_tmp
+                    else:
+                        self.betas = np.concatenate((self.betas, betas_tmp, ), axis=0)
+                        self.errors = np.concatenate((self.errors, errors_tmp, ), axis=0)
             else:
                 print ("File does not exist")
 
@@ -76,17 +84,39 @@ class Run:
             min_samples_split = 2
             min_samples_leaf = 1
 
-            print('Running RandomForest -- estimators = {}, depth = {}'.format(n_estimators, depth))
+            if model == 'Ridge':
 
-            self.estimator = self.rllhc.RFmodel(n_estimators, depth, min_samples_leaf, min_samples_split, self.train_inputs, self.train_outputs)
-            self.rllhc.get_model_score(self.estimator,self.train_inputs,self.train_outputs,self.test_inputs,self.test_outputs)
+                print('Running Ridge+Bagging')
+                self.bagging = False
+                self.estimator = self.rllhc.mymodel(self.train_inputs,self.train_outputs,self.bagging)
+                #print(self.estimator)
+                self.rllhc.get_model_score(self.estimator,self.train_inputs,self.train_outputs,self.test_inputs,self.test_outputs)
+        
+                print(self.estimator.get_params())
 
-            #print(self.estimator.get_params())
+                cross_valid = True
+                if cross_valid:
+                    # Some cross-validation results
+                    score = self.rllhc.get_cross_validation(self.train_inputs,self.train_outputs)
+                    print("Cross validation: score = %1.4f +/- %1.4f" % (np.mean(score), np.std(score)))
+
+                features = False
+                if features:
+                    self.rllhc.get_feature_importance(self.estimator,mode)
+
+            if model == 'RandomForest':
+
+                print('Running RandomForest -- estimators = {}, depth = {}'.format(n_estimators, depth))
+
+                self.estimator = self.rllhc.RFmodel(n_estimators, depth, min_samples_leaf, min_samples_split, self.train_inputs, self.train_outputs)
+                self.rllhc.get_model_score(self.estimator,self.train_inputs,self.train_outputs,self.test_inputs,self.test_outputs)
+
+                #print(self.estimator.get_params())
       
-            # Some cross-validation results
-            score = self.rllhc.get_cross_validation(self.train_inputs,self.train_outputs)
-            print(score)
-            print("Cross validation: score = %1.2f +/- %1.2f" % (np.mean(score), np.std(score)))
+                # Some cross-validation results
+                score = self.rllhc.get_cross_validation(self.train_inputs,self.train_outputs)
+                print(score)
+                print("Cross validation: score = %1.2f +/- %1.2f" % (np.mean(score), np.std(score)))
 
             # get importance
             #importance = self.estimator.feature_importances_
@@ -137,18 +167,25 @@ class Run:
 
             print('Running Ridge+Bagging')
             self.bagging = False
-            self.estimator = self.rllhc.mymodel(self.train_outputs,self.train_inputs,self.bagging)
-            self.rllhc.get_model_score(self.estimator,self.train_outputs,self.train_inputs,self.test_outputs,self.test_inputs)
+            self.estimator = self.rllhc.mymodel(self.train_inputs,self.train_outputs,self.bagging)
+            #print(self.estimator)
+            self.rllhc.get_model_score(self.estimator,self.train_inputs,self.train_outputs,self.test_inputs,self.test_outputs)
         
             print(self.estimator.get_params())
 
-            # Some cross-validation results
-            #score = self.rllhc.get_cross_validation(self.train_outputs,self.train_inputs)
-            #print("Cross validation: score = %1.2f +/- %1.2f" % (np.mean(score), np.std(score)))
+            cross_valid = True
+            if cross_valid:
+                # Some cross-validation results
+                score = self.rllhc.get_cross_validation(self.train_inputs,self.train_outputs)
+                print("Cross validation: score = %1.4f +/- %1.4f" % (np.mean(score), np.std(score)))
+
+            features = False
+            if features:
+                self.rllhc.get_feature_importance(self.estimator,mode)
 
             # hyperparameter optimization
             param_grid = {
-                'alpha': [0.001, 0.005, 0.01],
+                'alpha': np.arange(1e-5,1e-4,4),
                 #'copy_X': [True],
                 #'fit_intercept': [True],
                 #'max_iter': [None],
@@ -158,28 +195,37 @@ class Run:
                 'tol': [1e-50]
             }
 
-            gridsearch = GridSearchCV(self.estimator, param_grid=param_grid, cv=5, verbose=1)
-            gridsearch.fit(self.train_outputs, self.train_inputs)
+            #gridsearch = GridSearchCV(self.estimator, param_grid=param_grid, cv=5, verbose=1)
+            #gridsearch.fit(self.train_outputs, self.train_inputs)
 
             # Best cross validation score
-            print('Cross Validation Score:', gridsearch.best_score_)
+            #print('Cross Validation Score:', gridsearch.best_score_)
 
             # Best parameters which resulted in the best score
-            print('Best Parameters:', gridsearch.best_params_)
+            #print('Best Parameters:', gridsearch.best_params_)
 
+            case = True
+            if case:
+                predict_case = self.estimator.predict(self.test_inputs[0].reshape(1,-1))
+                print(np.shape(predict_case))
+                plt.plot(predict_case.reshape(-1,1), label='prediction')
+                plt.plot(self.test_outputs[0], label='real')
+                plt.legend()
+                output_label = [
+                    'Q3BL', 'Q3AL', 'Q2BL', 'Q2AL', 'Q1BL', 'Q1AL',
+                    'Q1AR', 'Q1BR', 'Q2AR', 'Q2BR', 'Q3AR', 'Q3BR',
+                    'MQT_1', 'MQT_2', 'MQT_3', 'MQT_4'
+                    ]
+                #plt.xticks(np.arange(0.5,16.5,1), output_label, rotation=0)
+                plt.show()
         
-        if mode == 'xgb':
-            # in this mode inputs and outputs are swapped
-            print("Predictor model: input = betas, output = errors")
-            print('Running XGBooster Regression')
-            self.estimator = self.rllhc.myXGBoost(self.train_outputs,self.train_inputs)
-            self.rllhc.get_model_score(self.estimator,self.train_outputs,self.train_inputs,self.test_outputs,self.test_inputs)
        
 if __name__ == "__main__":
     if len(sys.argv) > 3:
         path_to_data = sys.argv[1]
         num_samples = int(sys.argv[2])
         mode = sys.argv[3]
+        model = sys.argv[4]
         
     if len(sys.argv) <= 3:
         print()

@@ -15,7 +15,7 @@ from sklearn import linear_model
 from sklearn.ensemble import BaggingRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import cross_val_score
-import xgboost as xgb
+#import xgboost as xgb
 #from sklearn.externals import joblib
 
 class RLLHC(object):
@@ -72,6 +72,39 @@ class RLLHC(object):
                 missing += 1
         #print("Missing MQT samples {}".format(missing))
         return mqt_errors_b1, mqt_errors_b2
+    
+    def get_feature_importance(self,estimator,mode):
+                
+                importance = estimator.coef_
+
+                error_label = [
+                    'Q3BL', 'Q3AL', 'Q2BL', 'Q2AL', 'Q1BL', 'Q1AL',
+                    'Q1AR', 'Q1BR', 'Q2AR', 'Q2BR', 'Q3AR', 'Q3BR',
+                    'MQT_1', 'MQT_2', 'MQT_3', 'MQT_4'
+                    ]
+                
+                betas_label = [
+                    r'$\beta_x$ IP1L B1',r'$\beta_x$ IP1R B1',r'$\beta_x$ IP2L B1',r'$\beta_x$ IP2R B1',\
+                    r'$\beta_x$ IP5L B1',r'$\beta_x$ IP5R B1',r'$\beta_x$ IP8L B1',r'$\beta_x$ IP8R B1',\
+                    r'$\beta_y$ IP1L B1',r'$\beta_y$ IP1R B1',r'$\beta_y$ IP2L B1',r'$\beta_y$ IP2R B1',\
+                    r'$\beta_y$ IP5L B1',r'$\beta_y$ IP5R B1',r'$\beta_y$ IP8L B1',r'$\beta_y$ IP8R B1',\
+                    r'$\beta_x$ IP1L B2',r'$\beta_x$ IP1R B2',r'$\beta_x$ IP2L B2',r'$\beta_x$ IP2R B2',\
+                    r'$\beta_x$ IP5L B2',r'$\beta_x$ IP5R B2',r'$\beta_x$ IP8L B2',r'$\beta_x$ IP8R B2',\
+                    r'$\beta_y$ IP1L B2',r'$\beta_y$ IP1R B2',r'$\beta_y$ IP2L B2',r'$\beta_y$ IP2R B2',\
+                    r'$\beta_y$ IP5L B2',r'$\beta_y$ IP5R B2',r'$\beta_y$ IP8L B2',r'$\beta_y$ IP8R B2',\
+                ]
+
+                sns.heatmap(abs(importance), cmap="viridis", cbar=True)
+
+                if mode == 'predictor':
+                    plt.xticks(np.arange(0.5,32.5,1), betas_label, rotation=0)
+                    plt.yticks(np.arange(0.5,16.5,1), error_label, rotation=0)
+                else:
+                    plt.yticks(np.arange(0.5,32.5,1), betas_label, rotation=0)
+                    plt.xticks(np.arange(0.5,16.5,1), error_label, rotation=0)                    
+
+                plt.show()
+
 
     def norm_beta(self,beta_vector_x1,beta_vector_y1,beta_vector_x2,beta_vector_y2):
         beta_norm_x1 = []

@@ -8,6 +8,7 @@ import matplotlib.cm as cm
 import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
+from sklearn.preprocessing import MaxAbsScaler
 import matplotlib.pyplot as plt
 import pickle
 
@@ -139,26 +140,29 @@ class Run:
             'n_estimators': [70]
             }
 
-            #gridsearch = GridSearchCV(self.estimator, param_grid=param_grid, cv=5, verbose=1)
-
-            #gridsearch.fit(self.train_inputs, self.train_outputs)
+            gridsearch = GridSearchCV(self.estimator, param_grid=param_grid, cv=5, verbose=1)
+            gridsearch.fit(self.train_inputs, self.train_outputs)
 
             # Best cross validation score
-            #print('Cross Validation Score:', gridsearch.best_score_)
-
+            print('Cross Validation Score:', gridsearch.best_score_)
             # Best parameters which resulted in the best score
-            #print('Best Parameters:', gridsearch.best_params_)
+            print('Best Parameters:', gridsearch.best_params_)
 
         if mode == 'predictor':
             # in this mode inputs and outputs are swapped
             print("Predictor model: input = betas, output = errors")
 
-            self.input_data = self.betas
-            self.output_data = self.errors
+            X = self.betas
+            y = self.errors
+
+            scale = False
+            if scale:
+                print('Scaled fetures')
+                transformer = MaxAbsScaler().fit(X)
+                X = transformer.transform(X)
 
             # Split data in train and test
-            self.train_inputs, self.test_inputs, self.train_outputs, self.test_outputs = train_test_split(
-            self.input_data, self.output_data, test_size=0.2, random_state=None) 
+            self.train_inputs, self.test_inputs, self.train_outputs, self.test_outputs = train_test_split(X, y, test_size=0.2, random_state=None) 
 
             print("Number of train samples = {}".format(len(self.train_inputs)))
             print("Number of test samples = {}".format(len(self.test_inputs)))
@@ -170,10 +174,8 @@ class Run:
             self.estimator = self.rllhc.mymodel(self.train_inputs,self.train_outputs,self.bagging)
             #print(self.estimator)
             self.rllhc.get_model_score(self.estimator,self.train_inputs,self.train_outputs,self.test_inputs,self.test_outputs)
-        
-            print(self.estimator.get_params())
 
-            cross_valid = True
+            cross_valid = False
             if cross_valid:
                 # Some cross-validation results
                 score = self.rllhc.get_cross_validation(self.train_inputs,self.train_outputs)
@@ -185,7 +187,7 @@ class Run:
 
             # hyperparameter optimization
             param_grid = {
-                'alpha': np.arange(1e-5,1e-4,4),
+                'alpha': [1e-5,1e-4,2e-4],
                 #'copy_X': [True],
                 #'fit_intercept': [True],
                 #'max_iter': [None],
@@ -195,16 +197,21 @@ class Run:
                 'tol': [1e-50]
             }
 
-            #gridsearch = GridSearchCV(self.estimator, param_grid=param_grid, cv=5, verbose=1)
-            #gridsearch.fit(self.train_outputs, self.train_inputs)
+            doGridSearch = False
+            if doGridSearch:
+                gridsearch = GridSearchCV(self.estimator, param_grid=param_grid, cv=5, verbose=1)
+                gridsearch.fit(self.train_inputs, self.train_outputs)
 
-            # Best cross validation score
-            #print('Cross Validation Score:', gridsearch.best_score_)
+                # Best cross validation score
+                print('Cross Validation Score:', gridsearch.best_score_)
 
-            # Best parameters which resulted in the best score
-            #print('Best Parameters:', gridsearch.best_params_)
+                # Best parameters which resulted in the best score
+                print('Best Model:', gridsearch.best_estimator_)
 
-            case = True
+                self.new_estimator = gridsearch.best_estimator_
+                self.rllhc.get_model_score(self.new_estimator,self.train_inputs,self.train_outputs,self.test_inputs,self.test_outputs)
+
+            case = False
             if case:
                 predict_case = self.estimator.predict(self.test_inputs[0].reshape(1,-1))
                 print(np.shape(predict_case))

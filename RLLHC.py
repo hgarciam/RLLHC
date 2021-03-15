@@ -32,7 +32,7 @@ class RLLHC(object):
             ridge = linear_model.Ridge(normalize=False, tol=1e-50, alpha=1e-03)
             self.estimator = BaggingRegressor(base_estimator=ridge, n_estimators=10, max_samples=0.9, max_features=1.0, n_jobs=16, verbose=3)
         else:
-            self.estimator = linear_model.Ridge(normalize=True, tol=1e-50, alpha=1e-03, random_state=0, solver='auto')
+            self.estimator = linear_model.Ridge(normalize=True, tol=1e-50, alpha=1e-4, random_state=0, solver='auto')
 
         self.estimator.fit(train_inputs, train_outputs)
 
@@ -49,11 +49,11 @@ class RLLHC(object):
         return cross_val_score(self.estimator, train_inputs, train_outputs, cv=5)
 
     def get_model_score(self,estimator,train_inputs,train_outputs,test_inputs,test_outputs):
-        training_score = self.estimator.score(train_inputs, train_outputs)
-        test_score = self.estimator.score(test_inputs, test_outputs)
-        prediction_train = self.estimator.predict(train_inputs)
+        training_score = estimator.score(train_inputs, train_outputs)
+        test_score = estimator.score(test_inputs, test_outputs)
+        prediction_train = estimator.predict(train_inputs)
         mae_train = mean_absolute_error(train_outputs, prediction_train)
-        prediction_test = self.estimator.predict(test_inputs)
+        prediction_test = estimator.predict(test_inputs)
         mae_test = mean_absolute_error(test_outputs, prediction_test)
 
         print("Training: R2 = {0}, MAE = {1}".format(training_score, mae_train))

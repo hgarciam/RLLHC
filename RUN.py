@@ -79,11 +79,6 @@ class Run:
             print("Number of test samples = {}".format(len(self.test_inputs)))
             print("Number of input features {}".format(len(self.train_inputs[0])))
             print("Number of output features = {}".format(len(self.test_outputs[0])))
-            
-            n_estimators = 50
-            depth = 5
-            min_samples_split = 2
-            min_samples_leaf = 1
 
             if model == 'Ridge':
 
@@ -105,48 +100,57 @@ class Run:
                 if features:
                     self.rllhc.get_feature_importance(self.estimator,mode)
 
+                modelfile = 'Ridge_surrogate_20k.pkl'
+                pickle.dump(self.estimator,open(modelfile, 'wb'))
+
             if model == 'RandomForest':
 
                 print('Running RandomForest -- estimators = {}, depth = {}'.format(n_estimators, depth))
 
+                n_estimators = 50
+                depth = 5
+                min_samples_split = 2
+                min_samples_leaf = 1
+
                 self.estimator = self.rllhc.RFmodel(n_estimators, depth, min_samples_leaf, min_samples_split, self.train_inputs, self.train_outputs)
                 self.rllhc.get_model_score(self.estimator,self.train_inputs,self.train_outputs,self.test_inputs,self.test_outputs)
 
-                #print(self.estimator.get_params())
+                print(self.estimator.get_params())
       
                 # Some cross-validation results
                 score = self.rllhc.get_cross_validation(self.train_inputs,self.train_outputs)
                 print(score)
                 print("Cross validation: score = %1.2f +/- %1.2f" % (np.mean(score), np.std(score)))
 
-            # get importance
-            #importance = self.estimator.feature_importances_
-            # summarize feature importance
-            #for i,v in enumerate(importance):
-            #    print('Feature: %0d, Score: %.5f' % (i,v))
-            # plot feature importance
-            #plt.bar([x for x in range(len(importance))], importance)
-            #plt.show()
+                features = False
+                if features:
+                    # get importance
+                    importance = self.estimator.feature_importances_
+                    for i,v in enumerate(importance):
+                        print('Feature: %0d, Score: %.5f' % (i,v))
+                    plt.bar([x for x in range(len(importance))], importance)
+                    plt.show()
 
-            print("Average beta-beating = ", self.rllhc.get_betabeating(self.test_inputs[0],self.estimator))
+                gridsearch = False
+                if gridsearch:
 
-            # hyperparameter optimization
-            param_grid = {
-            'bootstrap': [True],
-            'max_depth': [20],
-            'max_features': ['auto'],
-            'min_samples_leaf': [1],
-            'min_samples_split': [2,3],
-            'n_estimators': [70]
-            }
+                    param_grid = {
+                    'bootstrap': [True],
+                    'max_depth': [20],
+                    'max_features': ['auto'],
+                    'min_samples_leaf': [1],
+                    'min_samples_split': [2,3],
+                    'n_estimators': [70]
+                    }
 
-            gridsearch = GridSearchCV(self.estimator, param_grid=param_grid, cv=5, verbose=1)
-            gridsearch.fit(self.train_inputs, self.train_outputs)
+                    gridsearch = GridSearchCV(self.estimator, param_grid=param_grid, cv=5, verbose=1)
+                    gridsearch.fit(self.train_inputs, self.train_outputs)
 
-            # Best cross validation score
-            print('Cross Validation Score:', gridsearch.best_score_)
-            # Best parameters which resulted in the best score
-            print('Best Parameters:', gridsearch.best_params_)
+                    # Best cross validation score
+                    print('Cross Validation Score:', gridsearch.best_score_)
+                    # Best parameters which resulted in the best score
+                    print('Best Parameters:', gridsearch.best_params_)
+
 
         if mode == 'predictor':
             # in this mode inputs and outputs are swapped
@@ -171,11 +175,10 @@ class Run:
 
             print('Running Ridge+Bagging')
             self.bagging = False
-            self.estimator = self.rllhc.mymodel(self.train_inputs,self.train_outputs,self.bagging)
-            #print(self.estimator)
-            self.rllhc.get_model_score(self.estimator,self.train_inputs,self.train_outputs,self.test_inputs,self.test_outputs)
+            estimator = self.rllhc.mymodel(self.train_inputs,self.train_outputs,self.bagging)
+            self.rllhc.get_model_score(estimator,self.train_inputs,self.train_outputs,self.test_inputs,self.test_outputs)
 
-            cross_valid = False
+            cross_valid = True
             if cross_valid:
                 # Some cross-validation results
                 score = self.rllhc.get_cross_validation(self.train_inputs,self.train_outputs)
@@ -185,21 +188,21 @@ class Run:
             if features:
                 self.rllhc.get_feature_importance(self.estimator,mode)
 
-            # hyperparameter optimization
-            param_grid = {
-                'alpha': [1e-5,1e-4,2e-4],
-                #'copy_X': [True],
-                #'fit_intercept': [True],
-                #'max_iter': [None],
-                'normalize': [True, False],
-                #'random_state': [0], 
-                'solver': ['auto'],
-                'tol': [1e-50]
-            }
-
-            doGridSearch = False
+            doGridSearch = True
             if doGridSearch:
-                gridsearch = GridSearchCV(self.estimator, param_grid=param_grid, cv=5, verbose=1)
+                
+                param_grid = {
+                    'alpha': [2e-4,3e-4],
+                    'copy_X': [True],
+                    'fit_intercept': [True],
+                    'max_iter': [None],
+                    'normalize': [True, False],
+                    'random_state': [0], 
+                    'solver': ['auto'],
+                    'tol': [1e-50]
+                }
+
+                gridsearch = GridSearchCV(estimator, param_grid=param_grid, cv=5, verbose=1)
                 gridsearch.fit(self.train_inputs, self.train_outputs)
 
                 # Best cross validation score
@@ -208,12 +211,12 @@ class Run:
                 # Best parameters which resulted in the best score
                 print('Best Model:', gridsearch.best_estimator_)
 
-                self.new_estimator = gridsearch.best_estimator_
-                self.rllhc.get_model_score(self.new_estimator,self.train_inputs,self.train_outputs,self.test_inputs,self.test_outputs)
+                estimator = gridsearch.best_estimator_
+                self.rllhc.get_model_score(estimator,self.train_inputs,self.train_outputs,self.test_inputs,self.test_outputs)
 
-            case = False
+            case = True
             if case:
-                predict_case = self.estimator.predict(self.test_inputs[0].reshape(1,-1))
+                predict_case = estimator.predict(self.test_inputs[0].reshape(1,-1))
                 print(np.shape(predict_case))
                 plt.plot(predict_case.reshape(-1,1), label='prediction')
                 plt.plot(self.test_outputs[0], label='real')
@@ -225,6 +228,9 @@ class Run:
                     ]
                 #plt.xticks(np.arange(0.5,16.5,1), output_label, rotation=0)
                 plt.show()
+
+            modelfile = 'Ridge_predictor_80k.pkl'
+            pickle.dump(estimator,open(modelfile, 'wb'))
         
        
 if __name__ == "__main__":
@@ -237,7 +243,7 @@ if __name__ == "__main__":
     if len(sys.argv) <= 3:
         print()
         print("          ERROR: One or more arguments are missing: ")
-        print("          How to Run: % RUN.py <path_to_data> <num_samples> <mode: surrogate, predictor> ")
+        print("          How to Run: % RUN.py <path_to_data> <num_samples> <mode: surrogate, predictor> <model: Ridge, RandomForest>")
         print()
         exit()
     

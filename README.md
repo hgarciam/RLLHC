@@ -8,7 +8,5 @@ RLLHC.py = contains the RLLHC class which contains all the information about dat
 
 ## TODO
 
-- Scale features
 - Feature selection based on feature importance (look for phase advances that are relevant)
-- Grid search
 - Score per output [arcs/triplet]

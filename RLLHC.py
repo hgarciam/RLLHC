@@ -39,11 +39,6 @@ class RLLHC(object):
         # joblib.dump(estimator, 'estimator.pkl')
         #self.estimator = joblib.load('estimator.pkl')
         return self.estimator
-    
-    def myXGBoost(self, train_inputs, train_outputs):
-        self.estimator = xgb.XGBRegressor(verbosity=0)
-        self.estimator.fit(train_inputs,train_outputs)
-        return self.estimator
 
     def get_cross_validation(self, train_inputs, train_outputs):
         return cross_val_score(self.estimator, train_inputs, train_outputs, cv=5)
@@ -94,7 +89,7 @@ class RLLHC(object):
                     r'$\beta_y$ IP5L B2',r'$\beta_y$ IP5R B2',r'$\beta_y$ IP8L B2',r'$\beta_y$ IP8R B2',\
                 ]
 
-                sns.heatmap(abs(importance), cmap="viridis", cbar=True)
+                sns.heatmap(np.log(abs(importance)), cmap="viridis", cbar=True, cbar_kws={'label': 'Magnitude'})
 
                 if mode == 'predictor':
                     plt.xticks(np.arange(0.5,32.5,1), betas_label, rotation=0)
@@ -102,7 +97,8 @@ class RLLHC(object):
                 else:
                     plt.yticks(np.arange(0.5,32.5,1), betas_label, rotation=0)
                     plt.xticks(np.arange(0.5,16.5,1), error_label, rotation=0)                    
-
+                plt.xlabel('Features')
+                plt.ylabel('Output')
                 plt.show()
 
 

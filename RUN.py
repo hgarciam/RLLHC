@@ -9,6 +9,7 @@ import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import MaxAbsScaler
+from sklearn.metrics import mean_absolute_error
 import matplotlib.pyplot as plt
 import pickle
 
@@ -47,9 +48,9 @@ class Run:
                     np.vstack(delta_beta_star_y_b1), \
                     np.vstack(delta_beta_star_x_b2), \
                     np.vstack(delta_beta_star_y_b2), \
-                    np.vstack(delta_muy_b1), np.vstack(delta_muy_b2), \
-                    np.vstack(delta_mux_b1), np.vstack(delta_mux_b2), \
-                    np.vstack(n_disp_b1), np.vstack(n_disp_b2), \
+                    #np.vstack(delta_muy_b1), np.vstack(delta_muy_b2), \
+                    #np.vstack(delta_mux_b1), np.vstack(delta_mux_b2), \
+                    #np.vstack(n_disp_b1), np.vstack(n_disp_b2), \
                     ), axis=1)
 
                     if i == 0:
@@ -61,7 +62,7 @@ class Run:
             else:
                 print ("File does not exist")
 
-    def run(self,mode):
+    def run(self,mode,model):
 
         if mode == 'surrogate':
 
@@ -96,7 +97,7 @@ class Run:
                     score = self.rllhc.get_cross_validation(self.train_inputs,self.train_outputs)
                     print("Cross validation: score = %1.4f +/- %1.4f" % (np.mean(score), np.std(score)))
 
-                features = False
+                features = True
                 if features:
                     self.rllhc.get_feature_importance(self.estimator,mode)
 
@@ -105,12 +106,12 @@ class Run:
 
             if model == 'RandomForest':
 
-                print('Running RandomForest -- estimators = {}, depth = {}'.format(n_estimators, depth))
-
                 n_estimators = 50
                 depth = 5
                 min_samples_split = 2
                 min_samples_leaf = 1
+
+                print('Running RandomForest -- estimators = {}, depth = {}'.format(n_estimators, depth))
 
                 self.estimator = self.rllhc.RFmodel(n_estimators, depth, min_samples_leaf, min_samples_split, self.train_inputs, self.train_outputs)
                 self.rllhc.get_model_score(self.estimator,self.train_inputs,self.train_outputs,self.test_inputs,self.test_outputs)
@@ -122,7 +123,7 @@ class Run:
                 print(score)
                 print("Cross validation: score = %1.2f +/- %1.2f" % (np.mean(score), np.std(score)))
 
-                features = False
+                features = True
                 if features:
                     # get importance
                     importance = self.estimator.feature_importances_
@@ -173,12 +174,27 @@ class Run:
             print("Number of input features {}".format(len(self.train_inputs[0])))
             print("Number of output features = {}".format(len(self.test_outputs[0])))
 
-            print('Running Ridge+Bagging')
-            self.bagging = False
-            estimator = self.rllhc.mymodel(self.train_inputs,self.train_outputs,self.bagging)
-            self.rllhc.get_model_score(estimator,self.train_inputs,self.train_outputs,self.test_inputs,self.test_outputs)
+            if model == 'Ridge':
+                print('Running Ridge')
+                self.bagging = False
+                estimator = self.rllhc.mymodel(self.train_inputs,self.train_outputs,self.bagging)
+                self.rllhc.get_model_score(estimator,self.train_inputs,self.train_outputs,self.test_inputs,self.test_outputs)
 
-            cross_valid = True
+            if model == 'RandomForest':
+
+                n_estimators = 10
+                depth = 5
+                min_samples_split = 2
+                min_samples_leaf = 1
+
+                print('Running RandomForest -- estimators = {}, depth = {}'.format(n_estimators, depth))
+
+                estimator = self.rllhc.RFmodel(n_estimators, depth, min_samples_leaf, min_samples_split, self.train_inputs, self.train_outputs)
+                self.rllhc.get_model_score(estimator,self.train_inputs,self.train_outputs,self.test_inputs,self.test_outputs)
+
+                print(estimator.get_params())
+
+            cross_valid = False
             if cross_valid:
                 # Some cross-validation results
                 score = self.rllhc.get_cross_validation(self.train_inputs,self.train_outputs)
@@ -186,9 +202,9 @@ class Run:
 
             features = False
             if features:
-                self.rllhc.get_feature_importance(self.estimator,mode)
+                self.rllhc.get_feature_importance(estimator,mode)
 
-            doGridSearch = True
+            doGridSearch = False
             if doGridSearch:
                 
                 param_grid = {
@@ -214,12 +230,12 @@ class Run:
                 estimator = gridsearch.best_estimator_
                 self.rllhc.get_model_score(estimator,self.train_inputs,self.train_outputs,self.test_inputs,self.test_outputs)
 
-            case = True
+            case = False
             if case:
                 predict_case = estimator.predict(self.test_inputs[0].reshape(1,-1))
                 print(np.shape(predict_case))
-                plt.plot(predict_case.reshape(-1,1), label='prediction')
-                plt.plot(self.test_outputs[0], label='real')
+                plt.plot(predict_case.reshape(-1,1)*1e4, label='prediction')
+                plt.plot(self.test_outputs[0]*1e4, label='real')
                 plt.legend()
                 output_label = [
                     'Q3BL', 'Q3AL', 'Q2BL', 'Q2AL', 'Q1BL', 'Q1AL',
@@ -227,7 +243,118 @@ class Run:
                     'MQT_1', 'MQT_2', 'MQT_3', 'MQT_4'
                     ]
                 #plt.xticks(np.arange(0.5,16.5,1), output_label, rotation=0)
+                plt.xlabel('Magnet number')
+                plt.ylabel('Error [10^{-4}]')
                 plt.show()
+
+                # predict systematic error after averaging over all triplet quads
+                # select quads
+
+            systematic = True
+            # Enables detailed study of systematic error in the triplet
+
+            if systematic:
+                prediction_test = estimator.predict(self.test_inputs)
+
+                KQX3B1 = -0.0234346323
+                KQX3B2 = 0.0234346323
+                KQX2B1 = 0.04005580581
+                KQX2B2 = -0.04005580581
+                KQX1B1 = -0.02385208
+                KQX1B2 = 0.02385208
+                
+                KQX = [KQX3B1, KQX3B1, KQX2B2, KQX2B2,
+                        KQX1B1, KQX1B1, KQX1B2, KQX1B2,
+                        KQX2B1, KQX2B1, KQX3B2, KQX3B2]
+
+                pred_rel = prediction_test[:,0:12]/KQX*1e4
+                real_rel = self.test_outputs[:,0:12]/KQX*1e4
+
+                residual_rel =  real_rel - pred_rel
+
+                Q3BL_pred_rel = pred_rel[:,0]
+                Q3AL_pred_rel = pred_rel[:,1]
+                Q2BL_pred_rel = pred_rel[:,2]
+                Q2AL_pred_rel = pred_rel[:,3]
+                Q1BL_pred_rel = pred_rel[:,4]
+                Q1AL_pred_rel = pred_rel[:,5]
+
+                Q1AR_pred_rel = pred_rel[:,6]
+                Q1BR_pred_rel = pred_rel[:,7]
+                Q2AR_pred_rel = pred_rel[:,8]
+                Q2BR_pred_rel = pred_rel[:,9]
+                Q3AR_pred_rel = pred_rel[:,10]
+                Q3BR_pred_rel = pred_rel[:,11]
+
+                Q3BL_real_rel = real_rel[:,0]
+                Q3AL_real_rel = real_rel[:,1]
+                Q2BL_real_rel = real_rel[:,2]
+                Q2AL_real_rel = real_rel[:,3]
+                Q1BL_real_rel = real_rel[:,4]
+                Q1AL_real_rel = real_rel[:,5]
+
+                Q1AR_real_rel = real_rel[:,6]
+                Q1BR_real_rel = real_rel[:,7] 
+                Q2AR_real_rel = real_rel[:,8]
+                Q2BR_real_rel = real_rel[:,9] 
+                Q3AR_real_rel = real_rel[:,10]
+                Q3BR_real_rel = real_rel[:,11] 
+
+                MAE = mean_absolute_error(real_rel,pred_rel)
+                MAE_Q1AL = mean_absolute_error(Q1AL_real_rel,Q1AL_pred_rel)
+                MAE_Q1BL = mean_absolute_error(Q1BL_real_rel,Q1BL_pred_rel)
+                MAE_Q1AR = mean_absolute_error(Q1AR_real_rel,Q1AR_pred_rel)
+                MAE_Q1BR = mean_absolute_error(Q1BR_real_rel,Q1BR_pred_rel)
+                MAE_Q2AL = mean_absolute_error(Q2AL_real_rel,Q2AL_pred_rel)
+                MAE_Q2BL = mean_absolute_error(Q2BL_real_rel,Q2BL_pred_rel)
+                MAE_Q2AR = mean_absolute_error(Q2AR_real_rel,Q2AR_pred_rel)
+                MAE_Q2BR = mean_absolute_error(Q2BR_real_rel,Q2BR_pred_rel)
+                MAE_Q3AL = mean_absolute_error(Q3AL_real_rel,Q3AL_pred_rel)
+                MAE_Q3BL = mean_absolute_error(Q3BL_real_rel,Q3BL_pred_rel)
+                MAE_Q3AR = mean_absolute_error(Q3AR_real_rel,Q3AR_pred_rel)
+                MAE_Q3BR = mean_absolute_error(Q3BR_real_rel,Q3BR_pred_rel)
+
+                print('MAE = %1.2f' % MAE)
+                print('MAE(Q1AL) = %1.2f' % MAE_Q1AL)
+                print('MAE(Q1BL) = %1.2f' % MAE_Q1BL) 
+                print('MAE(Q1AR) = %1.2f' % MAE_Q1AR) 
+                print('MAE(Q1BR) = %1.2f' % MAE_Q1BR)
+                print('MAE(Q2AL) = %1.2f' % MAE_Q2AL)
+                print('MAE(Q2BL) = %1.2f' % MAE_Q2BL) 
+                print('MAE(Q2AR) = %1.2f' % MAE_Q2AR) 
+                print('MAE(Q2BR) = %1.2f' % MAE_Q2BR) 
+                print('MAE(Q3AL) = %1.2f' % MAE_Q3AL)
+                print('MAE(Q3BL) = %1.2f' % MAE_Q3BL) 
+                print('MAE(Q3AR) = %1.2f' % MAE_Q3AR) 
+                print('MAE(Q3BR) = %1.2f' % MAE_Q3BR) 
+
+                syst_err_pred = []
+                syst_err_real = []
+                for i in range(len(pred_rel)):
+                        syst_err_pred.append(np.mean(pred_rel[i,:]))
+                        syst_err_real.append(np.mean(real_rel[i,:]))
+
+                MAE_syst = mean_absolute_error(syst_err_pred,syst_err_real)
+                print('MAE Systematic error %1.2f' % MAE_syst)
+
+                plt.figure()
+                plt.hist(syst_err_pred,bins=20,range=(-15,15),alpha=0.5,label='Predicted')
+                plt.hist(syst_err_real,bins=20,range=(-15,15),alpha=0.5,label='True')
+                plt.xlabel('Systematic Error [$10^{-4}$]',fontsize=18)
+                plt.ylabel('Counts',fontsize=18)
+                plt.legend(fontsize=18)
+                plt.savefig('syst_error_hist.pdf',bbox_inches='tight')
+
+                plt.figure()
+                plt.plot(syst_err_pred,label='Predicted')
+                plt.plot(syst_err_real,label='True')
+                plt.ylabel('Systematic Error [$10^{-4}$]',fontsize=18)
+                plt.xlabel('Seed number',fontsize=18)
+                plt.legend(fontsize=18)
+                plt.savefig('syst_error.pdf',bbox_inches='tight')
+
+                plt.show()
+
 
             modelfile = 'Ridge_predictor_80k.pkl'
             pickle.dump(estimator,open(modelfile, 'wb'))
@@ -249,5 +376,5 @@ if __name__ == "__main__":
     
     t0 = time()
     f = Run(path_to_data,num_samples)
-    f.run(mode)
+    f.run(mode,model)
     print("Time required = %1.2f seconds" % float(time() - t0))

@@ -48,9 +48,9 @@ class Run:
                     np.vstack(delta_beta_star_y_b1), \
                     np.vstack(delta_beta_star_x_b2), \
                     np.vstack(delta_beta_star_y_b2), \
-                    #np.vstack(delta_muy_b1), np.vstack(delta_muy_b2), \
-                    #np.vstack(delta_mux_b1), np.vstack(delta_mux_b2), \
-                    #np.vstack(n_disp_b1), np.vstack(n_disp_b2), \
+                    np.vstack(delta_muy_b1), np.vstack(delta_muy_b2), \
+                    np.vstack(delta_mux_b1), np.vstack(delta_mux_b2), \
+                    np.vstack(n_disp_b1), np.vstack(n_disp_b2), \
                     ), axis=1)
 
                     if i == 0:
@@ -200,7 +200,7 @@ class Run:
                 score = self.rllhc.get_cross_validation(self.train_inputs,self.train_outputs)
                 print("Cross validation: score = %1.4f +/- %1.4f" % (np.mean(score), np.std(score)))
 
-            features = False
+            features = True
             if features:
                 self.rllhc.get_feature_importance(estimator,mode)
 
@@ -352,6 +352,14 @@ class Run:
                 plt.xlabel('Seed number',fontsize=18)
                 plt.legend(fontsize=18)
                 plt.savefig('syst_error.pdf',bbox_inches='tight')
+
+                plt.figure()
+                plt.hist(Q2BR_pred_rel,bins=20,range=(-30,30),alpha=0.5,label='Predicted')
+                plt.hist(Q2BR_real_rel,bins=20,range=(-30,30),alpha=0.5,label='True')
+                plt.xlabel('Error [$10^{-4}$]',fontsize=18)
+                plt.ylabel('Counts',fontsize=18)
+                plt.legend(fontsize=18)
+                plt.savefig('error_hist.pdf',bbox_inches='tight')
 
                 plt.show()
 

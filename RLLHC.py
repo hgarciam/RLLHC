@@ -90,15 +90,17 @@ class RLLHC(object):
                 ]
 
                 sns.heatmap(np.log(abs(importance)), cmap="viridis", cbar=True, cbar_kws={'label': 'Magnitude'})
-
                 if mode == 'predictor':
                     plt.xticks(np.arange(0.5,32.5,1), betas_label, rotation=0)
                     plt.yticks(np.arange(0.5,16.5,1), error_label, rotation=0)
                 else:
                     plt.yticks(np.arange(0.5,32.5,1), betas_label, rotation=0)
                     plt.xticks(np.arange(0.5,16.5,1), error_label, rotation=0)                    
-                plt.xlabel('Features')
-                plt.ylabel('Output')
+                
+                plt.figure()
+                sns.heatmap(np.log(abs(importance)), cmap="viridis", cbar=True, cbar_kws={'label': 'Magnitude'})
+                plt.xlim(0,16)
+                plt.ylim(0,5)
                 plt.show()
 
 

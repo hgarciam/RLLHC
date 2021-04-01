@@ -91,18 +91,31 @@ class Run:
         
                 print(self.estimator.get_params())
 
-                cross_valid = True
+                cross_valid = False
                 if cross_valid:
                     # Some cross-validation results
                     score = self.rllhc.get_cross_validation(self.train_inputs,self.train_outputs)
                     print("Cross validation: score = %1.4f +/- %1.4f" % (np.mean(score), np.std(score)))
 
-                features = True
+                features = False
                 if features:
                     self.rllhc.get_feature_importance(self.estimator,mode)
 
                 modelfile = 'Ridge_surrogate_20k.pkl'
                 pickle.dump(self.estimator,open(modelfile, 'wb'))
+
+                prediction_test = self.estimator.predict(self.test_inputs)
+
+                plt.figure(figsize=(10,5))
+                plt.plot(prediction_test[0:100,0], alpha=0.7, label='Prediction')
+                plt.plot(self.test_outputs[0:100,0], alpha=0.7, label='True')
+                plt.xticks(fontsize=18)
+                plt.yticks(fontsize=18)
+                plt.ylabel(r'$\Delta\beta$ [m]', fontsize=18)
+                plt.xlabel('seed #', fontsize=18)
+                plt.legend(fontsize=18)
+                plt.savefig('pred_beta.pdf',bbox_inches='tight')
+                plt.show()
 
             if model == 'RandomForest':
 
@@ -340,24 +353,30 @@ class Run:
                 plt.figure()
                 plt.hist(syst_err_pred,bins=20,range=(-15,15),alpha=0.5,label='Predicted')
                 plt.hist(syst_err_real,bins=20,range=(-15,15),alpha=0.5,label='True')
-                plt.xlabel('Systematic Error [$10^{-4}$]',fontsize=18)
+                plt.xlabel('$\Delta K/K$ syst. [$10^{-4}$]',fontsize=18)
+                plt.xticks(fontsize=18)
                 plt.ylabel('Counts',fontsize=18)
+                plt.yticks(fontsize=18)
                 plt.legend(fontsize=18)
                 plt.savefig('syst_error_hist.pdf',bbox_inches='tight')
 
                 plt.figure()
                 plt.plot(syst_err_pred,label='Predicted')
                 plt.plot(syst_err_real,label='True')
-                plt.ylabel('Systematic Error [$10^{-4}$]',fontsize=18)
+                plt.ylabel('$\Delta K/K$ syst. [$10^{-4}$]',fontsize=18)
+                plt.xticks(fontsize=18)
                 plt.xlabel('Seed number',fontsize=18)
+                plt.yticks(fontsize=18)
                 plt.legend(fontsize=18)
                 plt.savefig('syst_error.pdf',bbox_inches='tight')
 
                 plt.figure()
                 plt.hist(Q2BR_pred_rel,bins=20,range=(-30,30),alpha=0.5,label='Predicted')
                 plt.hist(Q2BR_real_rel,bins=20,range=(-30,30),alpha=0.5,label='True')
-                plt.xlabel('Error [$10^{-4}$]',fontsize=18)
+                plt.xlabel('$\Delta K/K$ [$10^{-4}$]',fontsize=18)
+                plt.xticks(fontsize=18)
                 plt.ylabel('Counts',fontsize=18)
+                plt.yticks(fontsize=18)
                 plt.legend(fontsize=18)
                 plt.savefig('error_hist.pdf',bbox_inches='tight')
 

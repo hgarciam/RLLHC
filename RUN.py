@@ -311,7 +311,20 @@ class Run:
                 Q2AR_real_rel = real_rel[:,8]
                 Q2BR_real_rel = real_rel[:,9] 
                 Q3AR_real_rel = real_rel[:,10]
-                Q3BR_real_rel = real_rel[:,11] 
+                Q3BR_real_rel = real_rel[:,11]
+
+                plt.figure()
+                plt.plot(Q2AL_real_rel,Q2AL_pred_rel-Q2AL_real_rel,'.',label='Q2AL')
+                plt.plot(Q2AR_real_rel,Q2AR_pred_rel-Q2AR_real_rel,'.',label='Q2AR')
+                plt.plot(Q2BL_real_rel,Q2BL_pred_rel-Q2BL_real_rel,'.',label='Q2BL')
+                plt.plot(Q2BR_real_rel,Q2BR_pred_rel-Q2BR_real_rel,'.',label='Q2BR')
+                plt.xlabel('True relative error [$10^{-4}$]',fontsize=18)
+                plt.ylabel('True - Prediction [$10^{-4}$]',fontsize=18)
+                plt.xticks(fontsize=18)
+                plt.yticks(fontsize=18)
+                plt.legend(fontsize=18)
+                plt.savefig('Q2_error_scatter_plot.pdf',bbox_inches='tight')
+
 
                 MAE = mean_absolute_error(real_rel,pred_rel)
                 MAE_Q1AL = mean_absolute_error(Q1AL_real_rel,Q1AL_pred_rel)

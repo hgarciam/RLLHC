@@ -12,6 +12,7 @@ from sklearn.preprocessing import MaxAbsScaler
 from sklearn.metrics import mean_absolute_error
 import matplotlib.pyplot as plt
 import pickle
+import seaborn as sns
 
 
 class Run: 
@@ -314,17 +315,22 @@ class Run:
                 Q3BR_real_rel = real_rel[:,11]
 
                 plt.figure()
-                plt.plot(Q2AL_real_rel,Q2AL_pred_rel-Q2AL_real_rel,'.',label='Q2AL')
-                plt.plot(Q2AR_real_rel,Q2AR_pred_rel-Q2AR_real_rel,'.',label='Q2AR')
-                plt.plot(Q2BL_real_rel,Q2BL_pred_rel-Q2BL_real_rel,'.',label='Q2BL')
-                plt.plot(Q2BR_real_rel,Q2BR_pred_rel-Q2BR_real_rel,'.',label='Q2BR')
+                plt.hist2d(Q2AL_real_rel,Q2AL_pred_rel-Q2AL_real_rel,bins=100,range=([-30,30],[-30,30]))
+                #sns.displot(Q2AL_real_rel,Q2AL_pred_rel-Q2AL_real_rel,bins=100,range=([-30,30],[-30,30]),cbar=True)
+                #plt.hist2d(Q2AR_real_rel,Q2AR_pred_rel-Q2AR_real_rel,label='Q2AR')
+                #plt.hist2d(Q2BL_real_rel,Q2BL_pred_rel-Q2BL_real_rel,label='Q2BL')
+                #plt.hist2d(Q2BR_real_rel,Q2BR_pred_rel-Q2BR_real_rel,label='Q2BR')
                 plt.xlabel('True relative error [$10^{-4}$]',fontsize=18)
                 plt.ylabel('True - Prediction [$10^{-4}$]',fontsize=18)
+                #plt.ylim(-30,30)
+                #plt.xlim(-30,30)
                 plt.xticks(fontsize=18)
                 plt.yticks(fontsize=18)
-                plt.legend(fontsize=18)
+                #plt.legend(fontsize=18)
+                plt.colorbar()
                 plt.savefig('Q2_error_scatter_plot.pdf',bbox_inches='tight')
 
+                print('Mean absolute of True error %1.2f' % np.mean(abs(Q2AL_real_rel)))
 
                 MAE = mean_absolute_error(real_rel,pred_rel)
                 MAE_Q1AL = mean_absolute_error(Q1AL_real_rel,Q1AL_pred_rel)

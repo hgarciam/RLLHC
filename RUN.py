@@ -29,29 +29,29 @@ class Run:
             if os.path.isfile(self.filename):
                 self.all_samples = np.load('{}'.format(self.filename), allow_pickle=True, encoding='latin1')
 
-                delta_beta_star_x_b1, delta_beta_star_y_b1, delta_beta_star_x_b2, \
-                delta_beta_star_y_b2, delta_mux_b1, delta_muy_b1, delta_mux_b2, \
-                delta_muy_b2, n_disp_b1, n_disp_b2, \
+                delta_beta_star_x_b1, delta_beta_star_y_b1, delta_beta_star_x_b2, delta_beta_star_y_b2,\
+                delta_mux_b1, delta_muy_b1, delta_mux_b2, delta_muy_b2, n_disp_b1, n_disp_b2, \
                 triplet_errors, arc_errors_b1, arc_errors_b2, mqt_errors_b1, mqt_errors_b2 = self.all_samples.T
                 
                 if len(mqt_errors_b1[0])==0:
                     pass
                 else:
+
                     mqt_errors_b1, mqt_errors_b2 = self.rllhc.clean_data(mqt_errors_b1, mqt_errors_b2)
                     errors_tmp = np.concatenate(( \
                     np.vstack(triplet_errors),\
-                    np.vstack(mqt_errors_b1), np.vstack(mqt_errors_b2), \
-                    np.vstack(arc_errors_b1), np.vstack(arc_errors_b2), \
+                    #np.vstack(mqt_errors_b1), np.vstack(mqt_errors_b2), \
+                    #np.vstack(arc_errors_b1), np.vstack(arc_errors_b2), \
                     ), axis=1)
 
                     betas_tmp = np.concatenate((
                     np.vstack(delta_beta_star_x_b1), \
                     np.vstack(delta_beta_star_y_b1), \
-                    np.vstack(delta_beta_star_x_b2), \
-                    np.vstack(delta_beta_star_y_b2), \
-                    np.vstack(delta_muy_b1), np.vstack(delta_muy_b2), \
-                    np.vstack(delta_mux_b1), np.vstack(delta_mux_b2), \
-                    np.vstack(n_disp_b1), np.vstack(n_disp_b2), \
+                    #np.vstack(delta_beta_star_x_b2), \
+                    #np.vstack(delta_beta_star_y_b2), \
+                    #np.vstack(delta_muy_b1), np.vstack(delta_muy_b2), \
+                    #np.vstack(delta_mux_b1), np.vstack(delta_mux_b2), \
+                    #np.vstack(n_disp_b1), np.vstack(n_disp_b2), \
                     ), axis=1)
 
                     if i == 0:
@@ -137,7 +137,7 @@ class Run:
                 print(score)
                 print("Cross validation: score = %1.2f +/- %1.2f" % (np.mean(score), np.std(score)))
 
-                features = True
+                features = False
                 if features:
                     # get importance
                     importance = self.estimator.feature_importances_
@@ -214,7 +214,7 @@ class Run:
                 score = self.rllhc.get_cross_validation(self.train_inputs,self.train_outputs)
                 print("Cross validation: score = %1.4f +/- %1.4f" % (np.mean(score), np.std(score)))
 
-            features = True
+            features = False
             if features:
                 self.rllhc.get_feature_importance(estimator,mode)
 
@@ -264,7 +264,7 @@ class Run:
                 # predict systematic error after averaging over all triplet quads
                 # select quads
 
-            systematic = True
+            systematic = False
             # Enables detailed study of systematic error in the triplet
 
             if systematic:

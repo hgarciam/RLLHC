@@ -32,10 +32,28 @@ class Run:
                 delta_beta_star_x_b1, delta_beta_star_y_b1, delta_beta_star_x_b2, delta_beta_star_y_b2,\
                 delta_mux_b1, delta_muy_b1, delta_mux_b2, delta_muy_b2, n_disp_b1, n_disp_b2, \
                 triplet_errors, arc_errors_b1, arc_errors_b2, mqt_errors_b1, mqt_errors_b2 = self.all_samples.T
-                
+
+                print(delta_beta_star_x_b1)
+
                 if len(mqt_errors_b1[0])==0:
                     pass
                 else:
+
+                    KQX3B1 = -0.0234346323
+                    KQX3B2 = 0.0234346323
+                    KQX2B1 = 0.04005580581
+                    KQX2B2 = -0.04005580581
+                    KQX1B1 = -0.02385208
+                    KQX1B2 = 0.02385208
+
+                    KQX = [KQX3B1, KQX3B1, KQX2B2, KQX2B2,
+                           KQX1B1, KQX1B1, KQX1B2, KQX1B2,
+                           KQX2B1, KQX2B1, KQX3B2, KQX3B2]
+
+                    convert_strength = True
+                    if convert_strength:
+                        for j in range(len(triplet_errors)):
+                            triplet_errors[j] = triplet_errors[j] + KQX
 
                     mqt_errors_b1, mqt_errors_b2 = self.rllhc.clean_data(mqt_errors_b1, mqt_errors_b2)
                     errors_tmp = np.concatenate(( \

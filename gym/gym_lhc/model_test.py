@@ -5,7 +5,6 @@ import pandas as pd
 import random
 
 
-
 def generate_triplet_errors(index,magnet):
 
     if magnet == 'Q2':

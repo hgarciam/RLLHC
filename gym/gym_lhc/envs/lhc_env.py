@@ -24,9 +24,12 @@ class LHCEnv(gym.Env):
     Actions:
         Type:Box()
         Num     Action
-        0       corr_Q1
-        1       corr_Q2
-        2       corr_Q3
+        0       corr_Q1_L
+        1       corr_Q2_L
+        2       corr_Q3_L
+        3       corr_Q1_R
+        4       corr_Q2_R
+        5       corr_Q3_R
 
         Note: The action space is composed by the powering of the different corrector magnets.
         It is a continuous variable with range [-inf, +inf].
@@ -203,7 +206,7 @@ class LHCEnv(gym.Env):
 
         #self.state = KQX + error*1e-4
         self.state = KQX
-        print(self.state)
+        #print(self.state)
 
         modelfile = 'Ridge_surrogate_20k.pkl'
         self.estimator = pickle.load(open(modelfile, "rb"))

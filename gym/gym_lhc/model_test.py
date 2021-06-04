@@ -7,6 +7,8 @@ import random
 
 def generate_triplet_errors(index,magnet):
 
+    random.seed(1234)
+
     if magnet == 'Q2':
         Nq = 4     # Number of individual Q2, 2 ips, 2 quads per ip side
         FullRangeT = 50  # Full range of integrated gradient error in units

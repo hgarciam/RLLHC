@@ -49,14 +49,14 @@ class LHCEnv(gym.Env):
 
         def generate_triplet_errors(index, magnet):
 
-            random.seed(1234)
-            print("Generating errors in the triplet")
+            #random.seed(1234)
+            #print("Generating errors in the triplet")
 
             if magnet == 'Q2':
                 Nq = 4  # Number of individual Q2, 2 ips, 2 quads per ip side
-                FullRangeT = 50*0  # Full range of integrated gradient error in units
-                measerror = 2*0  # Random error of measurement
-                systerror = 10*0  # Random systematic error
+                FullRangeT = 50  # Full range of integrated gradient error in units
+                measerror = 2  # Random error of measurement
+                systerror = 10  # Random systematic error
                 sorting = True
 
                 magnet_list_L = ["MQXFB.A2L1", "MQXFB.B2L1"]
@@ -64,9 +64,9 @@ class LHCEnv(gym.Env):
 
             elif magnet == 'Q1' or 'Q3':
                 Nq = 4
-                FullRangeT = 50*0
-                measerror = 2*0
-                systerror = 10*0
+                FullRangeT = 50
+                measerror = 2
+                systerror = 10
                 sorting = False
 
                 if magnet == 'Q1':
@@ -152,11 +152,8 @@ class LHCEnv(gym.Env):
                          betaY_L5, betaY_R5, betaY_L8, betaY_R8,
                          ]
 
-        print("Generating Q1 errors")
         Q1_error_df = generate_triplet_errors(1, 'Q1')
-        print("Generating Q2 errors")
         Q2_error_df = generate_triplet_errors(1, 'Q2')
-        print("Generating Q3 errors")
         Q3_error_df = generate_triplet_errors(1, 'Q3')
 
         QA1L1_error = Q1_error_df.at['MQXFA.A1L1', 'Final error']
@@ -208,17 +205,22 @@ class LHCEnv(gym.Env):
                KQX1B1, KQX1B1, KQX1B2, KQX1B2,
                KQX2B2, KQX2B2, KQX3B2, KQX3B2]
 
-        self.state = KQX * (1 + error * 1e-4)
-        print("Perfect machine =", KQX)
-        print("Relative Error:", error * 1e-4)
-        print("Absolute Error:", KQX * error * 1e-4)
-        print("Initial State", self.state)
-
         modelfile = 'Ridge_surrogate_20k.pkl'
         self.estimator = pickle.load(open(modelfile, "rb"))
 
+        self.state = KQX * (1 + error * 1e-4)
+        #print("Errors:", error*1e-4)
+        KQX_errors = KQX * (1 + error * 1e-4)
+        #beta = self.estimator.predict(np.reshape(KQX_errors, (1, -1))) / self.betas_B1
+        #self.state = beta[0]
+        #print("Perfect machine =", KQX)
+        #print("Relative Error:", error * 1e-4)
+        #print("Absolute Error:", KQX * error * 1e-4)
+        #print("Initial State", self.state)
+
         self.num_correctors = 6
         self.num_magnets = 12
+        self.num_betas = 16
 
         self.action_space = spaces.Box(
             low=-8e-5,
@@ -226,12 +228,21 @@ class LHCEnv(gym.Env):
             shape=(self.num_correctors,),
             dtype=np.float32
         )
+
         self.observation_space = spaces.Box(
             low=-0.05,
             high=0.05,
             shape=(self.num_magnets,),
             dtype=np.float32
         )
+        '''
+        self.observation_space = spaces.Box(
+            low=-200.0,
+            high=200.0,
+            shape=(self.num_betas,),
+            dtype=np.float32
+        )
+        '''
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -246,8 +257,7 @@ class LHCEnv(gym.Env):
         KQX2B2 = -0.04005580581
         KQX3B2 = 0.0234346323
 
-        KQX3B1, KQX3B1, KQX2B1, KQX2B1, KQX1B1, KQX1B1, KQX1B2, KQX1B2, KQX2B2, KQX2B2, KQX3B2, KQX3B2, = self.state
-        print(self.state)
+        #KQX3B1, KQX3B1, KQX2B1, KQX2B1, KQX1B1, KQX1B1, KQX1B2, KQX1B2, KQX2B2, KQX2B2, KQX3B2, KQX3B2, = self.state
 
         KQX3B1 += action[0]
         KQX2B1 += action[1]
@@ -261,19 +271,22 @@ class LHCEnv(gym.Env):
                  KQX2B2, KQX2B2, KQX3B2, KQX3B2]
 
         dbetas = self.estimator.predict(np.reshape(input, (1, -1))) / self.betas_B1 * 100
+        betas = self.estimator.predict(np.reshape(input, (1, -1))) + self.betas_B1
 
         beating = abs(dbetas).mean()
         print("beating =", beating)
-        done = bool(beating < 20)  # 1% beating error coming from the surrogate model. Not possible less than that.
+        done = bool(beating < 5)  # 1% beating error coming from the surrogate model. Not possible less than that.
         reward = 0
 
         if done:
-            reward = 10.0
+            reward = 5.0
         reward -= beating
 
-        self.state = np.array(
-            [KQX3B1, KQX3B1, KQX2B1, KQX2B1, KQX1B1, KQX1B1, KQX1B2, KQX1B2, KQX2B2, KQX2B2, KQX3B2, KQX3B2])
-        return self.state, reward, done, {}
+        self.state = np.array(input)
+        #self.state = dbetas[0]
+        #print(self.state)
+        return self.state, reward, done, {}, dbetas
+        #return self.state, reward, done, {}
 
     def reset(self):
         # self.state = np.array([self.np_random.uniform(low=-0.6, high=-0.4), 0])

@@ -2,7 +2,6 @@ import gym
 import numpy as np
 from gym import error, spaces, utils
 from gym.utils import seeding
-import matplotlib.pyplot as plt
 import pickle
 import random
 import pandas as pd
@@ -48,6 +47,7 @@ class LHCEnv(gym.Env):
     def __init__(self):
 
         def generate_triplet_errors(index, magnet):
+            """Returns the errors assigned to the inner triplet magnets in IR1."""
 
             #random.seed(1234)
             #print("Generating errors in the triplet")
@@ -122,10 +122,10 @@ class LHCEnv(gym.Env):
 
             return df
 
-        self.num_correctors = 6  # number of correctors used.
         self.min_action = -1.0
         self.max_action = 1.0
 
+        # Beta-functions at the Q1 locations in 4 IPs.
         betaX_L1 = 1592.145382
         betaY_L1 = 1592.147517
         betaX_R1 = 1592.14538
@@ -152,6 +152,7 @@ class LHCEnv(gym.Env):
                          betaY_L5, betaY_R5, betaY_L8, betaY_R8,
                          ]
 
+        # Assign errors to the IT magnets
         Q1_error_df = generate_triplet_errors(1, 'Q1')
         Q2_error_df = generate_triplet_errors(1, 'Q2')
         Q3_error_df = generate_triplet_errors(1, 'Q3')
@@ -181,33 +182,16 @@ class LHCEnv(gym.Env):
         KQX2B2 = -0.04005580581
         KQX3B2 = 0.0234346323
 
-        betaX_L1 = 1592.145382
-        betaY_L1 = 1592.147517
-        betaX_R1 = 1592.14538
-        betaY_R1 = 1592.148218
-
-        betaX_L2 = 56.63440158
-        betaY_L2 = 56.63407795
-        betaX_R2 = 56.63440274
-        betaY_R2 = 56.63412429
-
-        betaX_L5 = 1592.14537
-        betaY_L5 = 1592.150588
-        betaX_R5 = 1592.145368
-        betaY_R5 = 1592.151234
-
-        betaX_L8 = 158.4480108
-        betaY_L8 = 158.4492521
-        betaX_R8 = 158.4480109
-        betaY_R8 = 158.4492562
-
+        # Create a vector with all the strengths of the IT magnets in IR1
         KQX = [KQX3B1, KQX3B1, KQX2B1, KQX2B1,
                KQX1B1, KQX1B1, KQX1B2, KQX1B2,
                KQX2B2, KQX2B2, KQX3B2, KQX3B2]
 
+        # Load surrogate model
         modelfile = 'Ridge_surrogate_20k.pkl'
         self.estimator = pickle.load(open(modelfile, "rb"))
 
+        # Initialise state based on magnet strengths + errors
         self.state = KQX * (1 + error * 1e-4)
         #print("Errors:", error*1e-4)
         KQX_errors = KQX * (1 + error * 1e-4)
@@ -218,10 +202,11 @@ class LHCEnv(gym.Env):
         #print("Absolute Error:", KQX * error * 1e-4)
         #print("Initial State", self.state)
 
-        self.num_correctors = 6
-        self.num_magnets = 12
-        self.num_betas = 16
+        self.num_correctors = 6 # number of correctors used (one per IT magnet).
+        self.num_magnets = 12 # Total number of magnets
+        self.num_betas = 16 # Total number of beta-function evaluation points
 
+        # Initialise action space
         self.action_space = spaces.Box(
             low=-8e-5,
             high=8e-5,
@@ -229,6 +214,7 @@ class LHCEnv(gym.Env):
             dtype=np.float32
         )
 
+        # Initialise observation space
         self.observation_space = spaces.Box(
             low=-0.05,
             high=0.05,
@@ -249,7 +235,9 @@ class LHCEnv(gym.Env):
         return [seed]
 
     def step(self, action):
+        """Returns self.state, reward, done, {}, dbetas after each learning step"""
 
+        # Nominal quadrupole strengths
         KQX3B1 = -0.0234346323
         KQX2B1 = 0.04005580581
         KQX1B1 = -0.02385208
@@ -259,6 +247,7 @@ class LHCEnv(gym.Env):
 
         #KQX3B1, KQX3B1, KQX2B1, KQX2B1, KQX1B1, KQX1B1, KQX1B2, KQX1B2, KQX2B2, KQX2B2, KQX3B2, KQX3B2, = self.state
 
+        # The action adds incrementally to the nominal magnet strength
         KQX3B1 += action[0]
         KQX2B1 += action[1]
         KQX1B1 += action[2]
@@ -270,30 +259,36 @@ class LHCEnv(gym.Env):
                  KQX1B1, KQX1B1, KQX1B2, KQX1B2,
                  KQX2B2, KQX2B2, KQX3B2, KQX3B2]
 
+        # Evaluation of beta-beating via surrogate model
         dbetas = self.estimator.predict(np.reshape(input, (1, -1))) / self.betas_B1 * 100
         betas = self.estimator.predict(np.reshape(input, (1, -1))) + self.betas_B1
 
+        # Average beta-beating
         beating = abs(dbetas).mean()
         print("beating =", beating)
+
+        # Threshold for learning termination
         done = bool(beating < 5)  # 1% beating error coming from the surrogate model. Not possible less than that.
+
+        # Initial reward
         reward = 0
 
         if done:
             reward = 5.0
+
+        # Reward is proportional to negative beta-beating. Maximum reward = 0.
         reward -= beating
 
         self.state = np.array(input)
         #self.state = dbetas[0]
         #print(self.state)
-        return self.state, reward, done, {}, dbetas
         #return self.state, reward, done, {}
 
+        return self.state, reward, done, {}, dbetas
+
+
     def reset(self):
+        """"Reset state"""
         # self.state = np.array([self.np_random.uniform(low=-0.6, high=-0.4), 0])
         return np.array(self.state)
 
-    # def render(self, mode='human'): #
-    #  ...
-
-    def close(self):
-        pass

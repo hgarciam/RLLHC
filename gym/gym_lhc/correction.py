@@ -5,9 +5,11 @@ import pickle
 import numpy as np
 from time import time
 
+''' This script tests the trained model on a given set of errors in the IR1 inntr triplet'''
 
 def run_correction():
 
+    # Nominal values of the inner triplet magnetic strengths
     KQX3B1 = -0.0234346323
     KQX2B1 = 0.04005580581
     KQX1B1 = -0.02385208
@@ -19,6 +21,7 @@ def run_correction():
              KQX1B1, KQX1B1, KQX1B2, KQX1B2,
              KQX2B2, KQX2B2, KQX3B2, KQX3B2]
 
+    # Nominal values of beta functions at the Q1 locations in the 4 different IPs
     betaX_L1 = 1592.145382
     betaY_L1 = 1592.147517
     betaX_R1 = 1592.14538
@@ -45,18 +48,22 @@ def run_correction():
                 betaY_L5, betaY_R5, betaY_L8, betaY_R8,
                 ]
 
-    # Load environment
+    # Initialise environment
     env = myenv.LHCEnv()
     obs = env.reset()
+
+    # Define errors and observation space
     errors = obs/input-1
     print("State:", obs)
     print("Errors:", errors)
     initial = obs
     obs_0 = obs
 
-    # Estimate initial beta-beating
+    # Estimate initial beta-beating via surrogate model
     modelfile = 'Ridge_surrogate_20k.pkl'
     estimator = pickle.load(open(modelfile, "rb"))
+
+    # Estimated initial beta-beating
     dbetas_0 = estimator.predict(np.reshape(initial, (1, -1))) / betas_B1 * 100
     beating_0 = abs(dbetas_0).mean()
     print("beta-beating before correction = %1.2f %%" % beating_0)
@@ -67,6 +74,7 @@ def run_correction():
     done = False
     step = 0
 
+    # Perform correction
     while not done:
         action, _states = model.predict(obs)
         #print("Action :", action)
@@ -78,6 +86,7 @@ def run_correction():
             #print("Correction =", action)
             #print("Final state =", obs)
 
+    # Return beta-beating after correction
     obs_0_norm = (obs_0-input)/input*100
     obs_norm = (obs-input)/input*100
 
@@ -90,6 +99,7 @@ def run_correction():
     plt.show()
     '''
 
+    # Some post-processing of the action space
     rel_action = (np.array([action[0], action[0], action[1], action[1], action[2], action[2],
                   action[3], action[3], action[4], action[4], action[5], action[5]]))/np.array(input)
 

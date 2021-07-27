@@ -11,7 +11,7 @@ from stable_baselines3.common.monitor import Monitor
 
 # TODO
 # Normalize action/observation space [-1,1]
-# Define reward in an better way?
+# Optimize reward?
 # Tune hyperparameters
 
 
@@ -21,31 +21,45 @@ def run_rl(name):
 
     log_dir = "tmp/"
     os.makedirs(log_dir, exist_ok=True)
+
+    # Initialise environment
     env = myenv.LHCEnv()
     env = Monitor(env, log_dir)
+
+    # Initialize observation space
     obs = env.reset()
 
+    # Number of learning steps
     timesteps = 400
 
     n_actions = env.action_space.shape[-1]
     print("Number of actions in environment =", n_actions)
+
+    # Introduce noise (proper of TD3 algorithm. Check literature for more information).
     action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
 
-    # Apply TD3 policy
+    # Initialise TD3 policy
     print("TD3 Running...")
     model = TD3(MlpPolicy, env, action_noise=action_noise, verbose=1)
+    # Learning
     print("TD3 Model Created. Now learning...")
     model.learn(total_timesteps=timesteps)
     print("TD3 learning done!")
 
+    # Save model
     model.save("td3_LHC")
 
+    # Reset observation space
     obs = env.reset()
+
+    # Plot learning curve
     plot_results([log_dir], timesteps, results_plotter.X_TIMESTEPS, "TD3 IR1 Optics Correction",[10, 5])
 
     plt.show()
 
     exit()
+
+    # Test model
 
     done = False
     step = 0

@@ -17,7 +17,7 @@ def run_correction():
     KQX2B2 = -0.04005580581
     KQX3B2 = 0.0234346323
 
-    input = [KQX3B1, KQX3B1, KQX2B1, KQX2B1,
+    nominal = [KQX3B1, KQX3B1, KQX2B1, KQX2B1,
              KQX1B1, KQX1B1, KQX1B2, KQX1B2,
              KQX2B2, KQX2B2, KQX3B2, KQX3B2]
 
@@ -53,7 +53,8 @@ def run_correction():
     obs = env.reset()
 
     # Define errors and observation space
-    errors = obs/input-1
+    errors = obs - nominal
+    print("Nominal state:", nominal)
     print("State:", obs)
     print("Errors:", errors)
     initial = obs
@@ -63,10 +64,23 @@ def run_correction():
     modelfile = 'Ridge_surrogate_20k.pkl'
     estimator = pickle.load(open(modelfile, "rb"))
 
-    # Estimated initial beta-beating
+    # Estimated beta-beating before correction
     dbetas_0 = estimator.predict(np.reshape(initial, (1, -1))) / betas_B1 * 100
     beating_0 = abs(dbetas_0).mean()
     print("beta-beating before correction = %1.2f %%" % beating_0)
+
+    # Manual correction based on compensating magnetic errors
+
+    errors_avg = [0]*12
+
+    for j in range(6):
+        i = 2*j
+        errors_avg[i], errors_avg[i+1] = (errors[i] + errors[i+1])/2.0, (errors[i] + errors[i+1])/2.0
+
+    initial_corr = initial - errors_avg
+    dbetas_manual = estimator.predict(np.reshape(initial_corr, (1, -1))) / betas_B1 * 100
+    beating_manual = abs(dbetas_manual).mean()
+    print("beta-beating after manual correction = %1.2f %%" % beating_manual)
 
     # Load RL model
     model = TD3.load("td3_LHC_136")
@@ -87,8 +101,8 @@ def run_correction():
             #print("Final state =", obs)
 
     # Return beta-beating after correction
-    obs_0_norm = (obs_0-input)/input*100
-    obs_norm = (obs-input)/input*100
+    obs_0_norm = (obs_0-nominal)/nominal*100
+    obs_norm = (obs-nominal)/nominal*100
 
     '''
     plt.figure()
@@ -101,7 +115,7 @@ def run_correction():
 
     # Some post-processing of the action space
     rel_action = (np.array([action[0], action[0], action[1], action[1], action[2], action[2],
-                  action[3], action[3], action[4], action[4], action[5], action[5]]))/np.array(input)
+                  action[3], action[3], action[4], action[4], action[5], action[5]]))/np.array(nominal)
 
     action_vec = (np.array([action[0], action[0], action[1], action[1], action[2], action[2],
                   action[3], action[3], action[4], action[4], action[5], action[5]]))
@@ -111,6 +125,9 @@ def run_correction():
 
     magnet_list = ["Q1XL1", "Q1XR1", "Q1XL2", "Q1XR2", "Q1XL5", "Q1XR5", "Q1XL8", "Q1XR8",
                    "Q1YL1", "Q1YR1", "Q1YL2", "Q1YR2", "Q1YL5", "Q1YR5", "Q1YL8", "Q1YR8"]
+
+    quad_list =["QB3L1", "QA3L1", "QB2L1", "QA2L1", "QB1L1", "QA1L1",
+                "QA1R1", "QB1R1", "QA2R1", "QB2R1", "QA3R1", "QB3R1"]
 
     plt.figure(figsize=(10,7))
     plt.plot(dbetas_0[0], 'o', label=r'before correction, $\langle\Delta\beta/\beta\rangle$ = %1.2f %%' % beating_0)
@@ -122,17 +139,30 @@ def run_correction():
     plt.xticks(np.arange(0,16), magnet_list, rotation=70)
     plt.xticks(fontsize=12)
     plt.yticks(fontsize=18)
-    plt.savefig("beating_after_crrection_no_errors.png")
+    plt.savefig("beating_after_crrection.png", bbox_to_anchor="tight")
 
-    plt.figure()
-    plt.plot(errors, 'o', label='Errors')
-    plt.plot(action_vec, 'o', label='Actions')
+    plt.figure(figsize=(10,7))
+    plt.plot(errors/nominal, 'o', label='Errors')
+    plt.plot(action_vec/nominal, 'o', label='Actions')
     #plt.plot(betas_B1, label='nominal')
     plt.legend(fontsize=18)
     plt.xlabel("Magnet number", fontsize=18)
-    plt.ylabel(r"$\Delta\beta/\beta$ [%]", fontsize=18)
-    plt.xticks(fontsize=18)
+    plt.ylabel(r"Relative magnet strength", fontsize=18)
+    plt.xticks(np.arange(0,12), quad_list, rotation=70)
+    plt.xticks(fontsize=12)
     plt.yticks(fontsize=18)
+    plt.savefig("errors_and_actions_after_correction.png", bbox_to_anchor="tight")
+
+    plt.figure(figsize=(10,7))
+    plt.plot(1 - (nominal + errors)/nominal, 'o', label='State before correction')
+    plt.plot(1- obs/nominal, 'o', label='State after correction')
+    plt.legend(fontsize=18)
+    plt.xlabel("Magnet number", fontsize=18)
+    plt.ylabel(r"Relative magnet strength", fontsize=18)
+    plt.xticks(np.arange(0,12), quad_list, rotation=70)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=18)
+    plt.savefig("state_before_and_after_correction.png", bbox_to_anchor="tight")
 
     plt.show()
 

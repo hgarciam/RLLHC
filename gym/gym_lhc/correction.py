@@ -57,6 +57,7 @@ def run_correction():
     print("Nominal state:", nominal)
     print("State:", obs)
     print("Errors:", errors)
+    print("Errors Rel:", errors/nominal)
     initial = obs
     obs_0 = obs
 
